@@ -133,7 +133,9 @@ Param(
     [String][Alias("b")]$Branch = '',
     [Switch][Alias("u")]$SetUpstreamOrigin = $false,
     [String][Alias("c")]$Checkout = '',
-    [String][Alias("m")]$Merge = ''
+    [String][Alias("m")]$Merge = '',
+
+    [Switch][Alias("v")]$Verbose = $false
 )
 
 
@@ -445,7 +447,10 @@ if($command.invokedGit -or $command.invokedOp)
         # one.
         if(-Not (Test-Path -Path $repo.path))
         {
-            ErrorLog "error: cannot find path $($repo.path)"
+            if($Verbose)
+            {
+                ErrorLog "error: cannot find path $($repo.path)"
+            }
             continue
         }
 
@@ -478,7 +483,10 @@ if($command.invokedGit -or $command.invokedOp)
             }
             if(($dest -eq $repo.branch))
             {
-                # WriteBarEvent "already on branch $dest"
+                if($Verbose)
+                {
+                    WriteBarEvent "already on branch $dest"
+                }
                 break
             } else {
                 WriteBarEvent "CHECKOUT $dest"
@@ -486,7 +494,7 @@ if($command.invokedGit -or $command.invokedOp)
                 $repo.branch = Git branch --show-current
                 if($repo.branch -eq $dest)
                 {
-                    WriteBarEvent $repo.branch + $box.arr.ToString()
+                    WriteBarEvent "$($repo.branch)$($box.arr)"
                     break
                 }
             }
@@ -500,8 +508,8 @@ if($command.invokedGit -or $command.invokedOp)
                 {
                     WriteBarEvent "DELETE $formatted"
                     Git branch -D $formatted
-                } else {
-                    # WriteBarEvent "cannot delete checked out branch"
+                } elseif($Verbose) {
+                    WriteBarEvent "cannot delete checked out branch"
                 }
             }
         }
