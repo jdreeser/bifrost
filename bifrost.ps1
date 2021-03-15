@@ -333,6 +333,44 @@ function ErrorLog {
     Write-Host "$args ".PadRight(80, '!') -ForegroundColor 'Red'
 }
 
+function CascadePath {
+    param(
+        [String]$dir,
+        [String]$name,
+        [String]$file
+    )
+    $dest = ""
+    if($file.Length -gt 0)
+    {
+        try {
+            $dest = (Split-Path -Path $file)
+            if((Test-Path -Path $dest))
+            {
+                return $dest
+            } else {
+                Write-Host "failed to Test-Path -Path $dest"
+            }
+        } catch {
+            Write-Host "failed to Split-Path -Path $dest"
+        }
+    }
+    if($name.Length -gt 0)
+    {
+        try {
+            $dest = (Join-Path -Path $dir -ChildPath $name)
+            if((Test-Path -Path $dest))
+            {
+                return $dest
+            } else {
+                Write-Host "failed to Test-Path -Path $dest"
+            }
+        } catch {
+            Write-Host "failed to Join-Path -Path $dest"
+        }
+    }
+    return $dir
+}
+
 # SETUP AND REPO RECOGNITION
 ################################################################################
 
@@ -530,21 +568,16 @@ if($Start)
         {
             $ArgumentList = " "
         }
-        if($NoExit)
+        if($NoExit -and -not $ArgumentList.Contains("-NoExit"))
         {
             $ArgumentList = "$ArgumentList -NoExit"
         }
-        $SetLocation = (Join-Path -Path $dir.current -ChildPath $key)
-        if(-Not (Test-Path -Path $SetLocation))
-        {
-            try {
-                $SetLocation = Split-Path -Path $item
-            } catch {
-                $SetLocation = $dir.current
-            }
-        }
+        $SetLocation = CascadePath -dir $dir.current -name $key -file $item
+        Write-Host "got $SetLocation path"
         Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs
-        Write-Rainbow "$($item.PadRight((Get-Random) % ($HOST.UI.RawUI.WindowSize.Width - 1), '-'))>"
+        $pre = "X$($box.h)[$key]$($box.h)[$(Split-Path -Leaf $item)]"
+        $pre = $pre.PadRight((Get-Random($HOST.UI.RawUI.WindowSize.Width - 1)), $box.h)
+        Write-Rainbow "$pre$($box.arr)"
     }
 }
 
