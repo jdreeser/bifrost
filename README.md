@@ -28,6 +28,6 @@ For example, let's say you have three repositories in `C:/dev/`. You want to run
 all of their `start.exe` files, but you also want to execute a non-repository
 command.
 
-    1. `bifrost -Scan -ForFile start.exe`
-    2. add `"extra": "echo 'hello world'",` to the `bifrost.json`
-    3. `bifrost -Start -Only first,second,third,extra -NoExit`
+1. `bifrost -Scan -ForFile start.exe`
+2. add `"extra": "echo 'hello world'",` to the `bifrost.json`
+3. `bifrost -Start -Only first,second,third,extra -NoExit`
