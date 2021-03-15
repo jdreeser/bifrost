@@ -347,11 +347,9 @@ function CascadePath {
             if((Test-Path -Path $dest))
             {
                 return $dest
-            } else {
-                Write-Host "failed to Test-Path -Path $dest"
             }
         } catch {
-            Write-Host "failed to Split-Path -Path $dest"
+            # Write-Host "failed to Split-Path -Path $dest"
         }
     }
     if($name.Length -gt 0)
@@ -361,11 +359,9 @@ function CascadePath {
             if((Test-Path -Path $dest))
             {
                 return $dest
-            } else {
-                Write-Host "failed to Test-Path -Path $dest"
             }
         } catch {
-            Write-Host "failed to Join-Path -Path $dest"
+            # Write-Host "failed to Join-Path -Path $dest"
         }
     }
     return $dir
@@ -573,7 +569,6 @@ if($Start)
             $ArgumentList = "$ArgumentList -NoExit"
         }
         $SetLocation = CascadePath -dir $dir.current -name $key -file $item
-        Write-Host "got $SetLocation path"
         Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs
         $pre = "X$($box.h)[$key]$($box.h)[$(Split-Path -Leaf $item)]"
         $pre = $pre.PadRight((Get-Random($HOST.UI.RawUI.WindowSize.Width - 1)), $box.h)
