@@ -560,6 +560,10 @@ if($Start)
     foreach($key in $repos.Keys)
     {
         $item = $repos[$key]
+        if($item.Length -lt 1)
+        {
+            continue
+        }
         if($ArgumentList.Length -lt 1)
         {
             $ArgumentList = " "
