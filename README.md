@@ -16,7 +16,7 @@ the command at `-Path`, which defaults to the current working directory.
 # non-repository -Start values
 
 Bifrost works best when it's managing one directory that contains many git
-repositories, when themselves contain executable files or files that facilitate
+repositories, which contain executable files or files that facilitate
 executing those repositories.
 
 Sometimes, however, you might want to run some other command along with a batch

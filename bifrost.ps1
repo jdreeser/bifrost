@@ -44,6 +44,12 @@
     -Path <string>
 
     Directory location for the script to run in. This should be a folder that contains many other repositories. If you do not provide a value for -Path, then it defaults to the current working directory.
+.PARAMETER DotnetClearLocals
+    Executes dotnet nuget locals --clear one time in the root directory.
+.PARAMETER DotnetRestore
+    Executes dotnet restore --interactive for each repository if a csproj file is found in that repository. The search for a .csproj file depth is determined with -Depth.
+
+    Warning! Using this switch may require human intervention in order to resolve authentication provider processes, as it uses --interactive.
 .PARAMETER Only
     -Only <string[,string...]>
 
@@ -119,6 +125,9 @@ Param(
     [Int32]$Speed = (Get-Random) % 100,
     [String][Alias("Target")]$Path = '',
 
+    [Switch][Alias("Clear")]$DotnetClearLocals = $false,
+    [Switch][Alias("Restore")]$DotnetRestore = $false,
+
     [String][Alias("o")]$Only = '',
     [Switch][Alias("q")]$Quick = $false,
 
@@ -144,11 +153,11 @@ Param(
 
 $command = @{
     "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick)
-    "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0))
+    "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore)
     "invokedScan" = (($For.Length -gt 0) -or ($Scan))
 }
 
-if((-Not $command.invokedGit) -and (-Not $command.invokedOp) -and (-Not $command.invokedScan) -and (-Not $Start) -or $Help)
+if((-Not $command.invokedGit) -and (-Not $command.invokedOp) -and (-Not $command.invokedScan) -and (-Not $Start) -and (-Not $DotnetClearLocals) -or $Help)
 {
     Get-Help -Name $(Join-Path -Path $PSScriptRoot -ChildPath 'bifrost.ps1').ToString() -Detailed
     return
@@ -426,6 +435,12 @@ if($Only.Length -gt 0)
     }
 }
 
+if($DotnetClearLocals)
+{
+    Write-Host "dotnet nuget locals --clear all"
+    dotnet nuget locals --clear all
+}
+
 # MAIN LOGIC
 ################################################################################
 
@@ -465,13 +480,13 @@ if($command.invokedGit -or $command.invokedOp)
 
         if($Abort)
         {
-            WriteBarEvent "MERGE ABORT"
+            WriteBarEvent "git merge --abort"
             Git merge --abort
         }
 
         if($Stash)
         {
-            WriteBarEvent "STASH"
+            WriteBarEvent "git stash --include-untracked"
             Git stash --include-untracked
         }
 
@@ -489,7 +504,7 @@ if($command.invokedGit -or $command.invokedOp)
                 }
                 break
             } else {
-                WriteBarEvent "CHECKOUT $dest"
+                WriteBarEvent "git checkout $dest"
                 Git checkout $dest
                 $repo.branch = Git branch --show-current
                 if($repo.branch -eq $dest)
@@ -506,7 +521,7 @@ if($command.invokedGit -or $command.invokedOp)
                 $formatted = $_.Trim(" *")
                 if($formatted -ne $repo.branch)
                 {
-                    WriteBarEvent "DELETE $formatted"
+                    WriteBarEvent "git branch -D $formatted"
                     Git branch -D $formatted
                 } elseif($Verbose) {
                     WriteBarEvent "cannot delete checked out branch"
@@ -516,17 +531,17 @@ if($command.invokedGit -or $command.invokedOp)
 
         if($List)
         {
-            WriteBarEvent "LIST"
+            WriteBarEvent "git --no-pager branch --list"
             Git --no-pager branch --list
         }
 
         if($Fetch) {
-            WriteBarEvent "FETCH"
+            WriteBarEvent "git fetch"
             Git fetch
         }
 
         if($Pull) {
-            WriteBarEvent "PULL"
+            WriteBarEvent "git pull"
             Git pull
         }
 
@@ -534,24 +549,36 @@ if($command.invokedGit -or $command.invokedOp)
         {
             if(-Not $Abort)
             {
-                WriteBarEvent "MERGE ABORT"
+                WriteBarEvent "git merge --abort"
                 Git merge --abort
             }
-            WriteBarEvent "MERGE $Merge"
+            WriteBarEvent "git merge --no-ff $Merge"
             Git merge --no-ff $Merge
         } elseif($Branch.Length -gt 0) {
-            WriteBarEvent "NEW $Branch"
+            WriteBarEvent "git checkout -b $Branch"
             Git checkout -b $Branch
             if($SetUpstreamOrigin){
-                WriteBarEvent "PUSH SET UPSTREAM ORIGIN $Branch"
+                WriteBarEvent "git push --set-upstream origin $Branch"
                 Git push --set-upstream origin $Branch
             }
         }
 
         if($Status)
         {
-            WriteBarEvent "STATUS"
+            WriteBarEvent "git status"
             Git status
+        }
+
+        # avoid doing a search for a csproj file if dotnet restore was not invoked
+        if($DotnetRestore)
+        {
+            if((Get-ChildItem -Force -Depth $Depth -File -Filter "*.csproj").Length -gt 0)
+            {
+                WriteBarEvent "dotnet restore --interactive"
+                dotnet restore --interactive
+            } else {
+                ErrorLog "error: dotnet restore invoked, but no csproj file found"
+            }
         }
 
         WriteBarBottom -Bran $repo.branch -Level $repo.level
