@@ -24,10 +24,22 @@ of repositories. For that, manually insert a new key/value pair into your
 `bifrost.json`. The key that you give it will allow you to specificy it in the
 `-Only` parameter, while the value will be executed on `-Start`.
 
-For example, let's say you have three repositories in `C:/dev/`. You want to run
-all of their `start.exe` files, but you also want to execute a non-repository
-command.
+For example, let's say you have three repositories in `C:/dev/`:
+
+    C:/dev/first
+
+    C:/dev/second
+
+    C:/dev/third
+
+You want to run all of their `start.exe` files, but you also want to execute a
+non-repository bound command one time.
 
 1. `bifrost -Scan -ForFile start.exe`
 2. add `"extra": "echo 'hello world'",` to the `bifrost.json`
 3. `bifrost -Start -Only first,second,third,extra -NoExit`
+
+When Bifrost executes files from the `bifrost.json`, it parses them into an
+ordered list, which is sorted alphabetically. It just so happens that in this
+example the order of execution is `extra`, `first`, `second`, `third` because
+that sequence is already in alphabetic order.
