@@ -416,8 +416,8 @@ if($repos.Count -lt 1)
     Exit
 }
 
-# ok we have somFolderitories, now we just need to extract and HasDirectory them
-# if we have a value in -Only.HasOnly.Length -gt 0)
+# ok we have som repositories, now we just need to extract and filter them
+# if we have a value in -Only
 if($Only.Length -gt 0)
 {
     $included = FormatOnly -Arg $Only
@@ -527,6 +527,9 @@ if($command.invokedGit -or $command.invokedOp)
                     WriteBarEvent "cannot delete checked out branch"
                 }
             }
+
+            WriteBarEvent "git stash clear"
+            Git stash clear
         }
 
         if($List)
@@ -608,7 +611,7 @@ if($Start)
             $ArgumentList = "$ArgumentList -NoExit"
         }
         $SetLocation = CascadePath -dir $dir.current -name $key -file $item
-        Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs
+        $proc = Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs -PassThru
         $pre = "X$($box.h)[$key]$($box.h)[$(Split-Path -Leaf $item)]"
         $pre = $pre.PadRight((Get-Random($HOST.UI.RawUI.WindowSize.Width - 1)), $box.h)
         Write-Rainbow "$pre$($box.arr)"
