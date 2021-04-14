@@ -416,7 +416,7 @@ if($repos.Count -lt 1)
     Exit
 }
 
-# ok we have som repositories, now we just need to extract and filter them
+# ok we have some repositories, now we just need to extract and filter them
 # if we have a value in -Only
 if($Only.Length -gt 0)
 {
