@@ -575,7 +575,13 @@ if($command.invokedGit -or $command.invokedOp)
                 } 
                 else
                 {
-                    Write-Output "Running Git push en masse is not a good idea."
+                    # TODO : display information about repo and ask user for
+                    # manual confirmation of push.
+                    # As an additional measure, restrict use of "push" in -g
+                    # to coincide with a non-empty -Only parameter?
+                    ErrorLog "git push is not allowed"
+                    Set-Location $dir.original
+                    return
                 }
             }
         }
