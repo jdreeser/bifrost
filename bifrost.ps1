@@ -282,19 +282,20 @@ function LoadFromSave {
     }
 }
 
-# Formats the -Only parameter into an array
-function FormatOnly {
+# StringToList turns a string into a list of strings
+function StringToList {
     param(
-        [String]$Arg
+        [String]$Arg,
+        [Boolean]$Trim = $false
     )
-    return $Arg.Split(" ") | ForEach-Object { $_.Trim(".", "\", "/", $sep) }
-}
-
-function FormatCheckout {
-    param(
-        [string]$Arg
-    )
-    return $Arg.Split(" ")
+    return $Arg.Split(" ") | ForEach-Object {
+        if($Trim)
+        {
+            $_.Trim(".", "\", "/", $sep)
+        } else {
+            $_
+        }
+    }
 }
 
 # Announces that a new repo is being processed
@@ -422,7 +423,7 @@ if($repos.Count -lt 1)
 # if we have a value in -Only
 if($Only.Length -gt 0)
 {
-    $included = FormatOnly -Arg $Only
+    $included = StringToList -Arg $Only -Trim
     $toDelete = [System.Collections.ArrayList]@()
     foreach($item in $repos.Keys)
     {
@@ -492,7 +493,7 @@ if($command.invokedGit -or $command.invokedOp)
             Git stash --include-untracked
         }
 
-        foreach($dest in FormatCheckout $Checkout)
+        foreach($dest in StringToList $Checkout)
         {
             if($dest.Length -lt 1)
             {
@@ -534,12 +535,6 @@ if($command.invokedGit -or $command.invokedOp)
             Git stash clear
         }
 
-        if($List)
-        {
-            WriteBarEvent "git --no-pager branch --list"
-            Git --no-pager branch --list
-        }
-
         if($Fetch) {
             WriteBarEvent "git fetch"
             Git fetch
@@ -548,15 +543,6 @@ if($command.invokedGit -or $command.invokedOp)
         if($Pull) {
             WriteBarEvent "git pull"
             Git pull
-        }
-        # allow the user to enter any git command
-        if($GitCommand.Length -gt 0) {
-            $included = FormatOnly -Arg $GitCommand
-            
-            foreach($item in $included)
-            {
-                Git $item
-            }
         }
 
         if($Merge.Length -gt 0)
@@ -577,10 +563,23 @@ if($command.invokedGit -or $command.invokedOp)
             }
         }
 
+        # allow the user to enter any git command
+        foreach($command in StringToList $GitCommand)
+        {
+            WriteBarEvent "git $command"
+            Git $command
+        }
+
         if($Status)
         {
             WriteBarEvent "git status"
             Git status
+        }
+
+        if($List)
+        {
+            WriteBarEvent "git --no-pager branch --list"
+            Git --no-pager branch --list
         }
 
         # avoid doing a search for a csproj file if dotnet restore was not invoked
