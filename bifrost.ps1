@@ -286,7 +286,7 @@ function LoadFromSave {
 function StringToList {
     param(
         [String]$Arg,
-        [Boolean]$Trim = $false
+        [Switch]$Trim = $false
     )
     return $Arg.Split(" ") | ForEach-Object {
         if($Trim)
@@ -566,8 +566,11 @@ if($command.invokedGit -or $command.invokedOp)
         # allow the user to enter any git command
         foreach($command in StringToList $GitCommand)
         {
-            WriteBarEvent "git $command"
-            Git $command
+            if($command)
+            {
+                WriteBarEvent "git $command"
+                Git $command
+            }
         }
 
         if($Status)
