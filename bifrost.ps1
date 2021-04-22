@@ -144,7 +144,9 @@ Param(
     [String][Alias("c")]$Checkout = '',
     [String][Alias("m")]$Merge = '',
 
-    [Switch][Alias("v")]$Verbose = $false
+    [Switch][Alias("v")]$Verbose = $false,
+
+    [String][Alias("g")]$GitCommand = ''
 )
 
 
@@ -152,7 +154,7 @@ Param(
 ################################################################################
 
 $command = @{
-    "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick)
+    "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick -or $GitCommand)
     "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore)
     "invokedScan" = (($For.Length -gt 0) -or ($Scan))
 }
@@ -546,6 +548,15 @@ if($command.invokedGit -or $command.invokedOp)
         if($Pull) {
             WriteBarEvent "git pull"
             Git pull
+        }
+        # allow the user to enter any git command
+        if($GitCommand.Length -gt 0) {
+            $included = FormatOnly -Arg $GitCommand
+            
+            foreach($item in $included)
+            {
+                Git $item
+            }
         }
 
         if($Merge.Length -gt 0)
