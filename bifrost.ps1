@@ -568,8 +568,15 @@ if($command.invokedGit -or $command.invokedOp)
         {
             if($command)
             {
-                WriteBarEvent "git $command"
-                Git $command
+                if ($command.ToLower() -ne "push")
+                {
+                    WriteBarEvent "git $command"
+                    Git $command
+                } 
+                else
+                {
+                    Write-Output "Running Git push en masse is not a good idea."
+                }
             }
         }
 
