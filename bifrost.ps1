@@ -423,9 +423,9 @@ if($repos.Count -lt 1)
 
 # ok we have some repositories, now we just need to extract and filter them
 # if we have a value in -Only
-if($Only.Length -gt 0)
+if($Include.Length -gt 0)
 {
-    $included = StringToList -Arg $Only -Trim
+    $included = StringToList -Arg $Include -Trim
     $toDelete = [System.Collections.ArrayList]@()
     foreach($item in $repos.Keys)
     {
