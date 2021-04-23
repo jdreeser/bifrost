@@ -130,6 +130,7 @@ Param(
 
     [String][Alias("o")]$Only = '',
     [Switch][Alias("q")]$Quick = $false,
+    [String][Alias("e")]$Exclude = '',
 
     [Switch][Alias("a")]$Abort = $false,
     [Switch][Alias("d", "Nuke", "Clean")]$DeleteBranches = $false,
@@ -428,6 +429,24 @@ if($Only.Length -gt 0)
     foreach($item in $repos.Keys)
     {
         if(!$included.Contains($item))
+        {
+            $toDelete.Add($item) > $null
+        }
+    }
+    foreach($item in $toDelete)
+    {
+        $repos.Remove($item)
+    }
+}
+
+# exclude listed repositories.
+if($Exclude.Length -gt 0)
+{
+    $excluded = StringToList -Arg $Exclude -Trim
+    $toDelete = [System.Collections.ArrayList]@()
+    foreach($item in $repos.Keys)
+    {
+        if($excluded.Contains($item))
         {
             $toDelete.Add($item) > $null
         }
