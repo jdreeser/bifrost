@@ -129,9 +129,9 @@ Param(
     [Switch][Alias("Restore")]$DotnetRestore = $false,
     [Switch][Alias("Build")]$DotnetBuild = $false,
 
-    [String][Alias("o")]$Only = '',
+    [String][Alias("o", "Only")]$Include = '',
     [Switch][Alias("q")]$Quick = $false,
-    [String][Alias("e")]$Exclude = '',
+    [String][Alias("e", "Not")]$Exclude = '',
 
     [Switch][Alias("a")]$Abort = $false,
     [Switch][Alias("d", "Nuke", "Clean")]$DeleteBranches = $false,
@@ -625,8 +625,8 @@ if($command.invokedGit -or $command.invokedOp)
             {
                 if($DotnetRestore)
                 {
-                WriteBarEvent "dotnet restore --interactive"
-                dotnet restore --interactive   
+                    WriteBarEvent "dotnet restore --interactive"
+                    dotnet restore --interactive
                 }
                 if($DotnetBuild)
                 {
@@ -634,7 +634,7 @@ if($command.invokedGit -or $command.invokedOp)
                     dotnet build
                 }
             } else {
-                ErrorLog "error: dotnet restore invoked, but no csproj file found"
+                ErrorLog "error: dotnet invoked, but no csproj file found"
             }
         }
 
