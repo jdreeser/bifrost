@@ -127,6 +127,7 @@ Param(
 
     [Switch][Alias("Clear")]$DotnetClearLocals = $false,
     [Switch][Alias("Restore")]$DotnetRestore = $false,
+    [Switch][Alias("Build")]$DotnetBuild = $false,
 
     [String][Alias("o")]$Only = '',
     [Switch][Alias("q")]$Quick = $false,
@@ -156,7 +157,7 @@ Param(
 
 $command = @{
     "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick -or $GitCommand)
-    "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore)
+    "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore -or $DotnetBuild )
     "invokedScan" = (($For.Length -gt 0) -or ($Scan))
 }
 
@@ -618,12 +619,20 @@ if($command.invokedGit -or $command.invokedOp)
         }
 
         # avoid doing a search for a csproj file if dotnet restore was not invoked
-        if($DotnetRestore)
+        if($DotnetRestore -or $DotnetBuild)
         {
             if((Get-ChildItem -Force -Depth $Depth -File -Filter "*.csproj").Length -gt 0)
             {
+                if($DotnetRestore)
+                {
                 WriteBarEvent "dotnet restore --interactive"
-                dotnet restore --interactive
+                dotnet restore --interactive   
+                }
+                if($DotnetBuild)
+                {
+                    WriteBarEvent "dotnet build"
+                    dotnet build
+                }
             } else {
                 ErrorLog "error: dotnet restore invoked, but no csproj file found"
             }
