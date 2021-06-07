@@ -36,6 +36,8 @@
     A string that is passed to the powershell invocation on -Start. For example "-NoExit".
 .PARAMETER NoExit
     Passes -NoExit to the powershell invocation on -Start. When using this switch, if the file fails to execute the window will remain open so that errors are visible.
+.PARAMETER NoCommit
+    When merging, uses git merge --no-commit.
 .PARAMETER Speed
     -Speed <number>
 
@@ -50,12 +52,16 @@
     Executes dotnet restore --interactive for each repository if a csproj file is found in that repository. The search for a .csproj file depth is determined with -Depth.
 
     Warning! Using this switch may require human intervention in order to resolve authentication provider processes, as it uses --interactive.
-.PARAMETER Only
-    -Only <string[,string...]>
+.PARAMETER Include
+    -Include <string[,string...]>
 
     A comma-separated list of included repos. This is trimmed before using, so that repo names that were auto-completed from the command line are parsed correctly.
 
-    If -Only is empty, then all detected repositories are targeted.
+    If -Include is empty, then all detected repositories are targeted.
+.PARAMETER Exclude
+    -Exclude <string[,string..]>
+
+    Repositories to skip during the operation. Overrides repositories in -Include.
 .PARAMETER Quick
     Shortens some output for a more compact look.
 .PARAMETER Abort
@@ -83,14 +89,14 @@
 
     Executes 'git checkout <branch>'. The parameter passed can be a comma separated list of branches. The repository will checkout the FIRST valid branch in the provided list, and ignores the rest.
 .PARAMETER Merge
-    Executes 'git merge --no-ff <Merge>' such that the branch indicated by the -Merge parameter is merged into whatever branch the repo is on at the time. Best practice is to run this with -Checkout and -Only for maximum control.
+    Executes 'git merge --no-ff <Merge>' such that the branch indicated by the -Merge parameter is merged into whatever branch the repo is on at the time. Best practice is to run this with -Checkout and -Include for maximum control.
 
     You cannot merge and create a new branch at the same time. If there is a conflict, the merge is preferred.
 .EXAMPLE
     .\bifrost.ps1 -Scan -ForDirectory .git -Path D:\path\to\my\code
     This command scans the given path for repositories that contain the directory '.git' and leaves a new 'bifrost.json' file there. The purpose of the file is to prevent manually scanning for repos each time the script is run.
 .EXAMPLE
-    .\bifrost.ps1 -Path C:\MyDevFolder -Only web,api -Status -Start -Checkout MyFeatureBranch
+    .\bifrost.ps1 -Path C:\MyDevFolder -Include web,api -Status -Start -Checkout MyFeatureBranch
     This command executes 'git status; git checkout MyFeatureBranch' in C:\MyDevFolder for only web and api, then executes their launchfiles.
 .EXAMPLE
     .\bifrost.ps1 -Abort -Stash -DeleteBranches -Checkout MyFeatureBranch,dev,master
@@ -121,6 +127,7 @@ Param(
     [Switch][Alias("Launch")]$Start = $false,
     [String]$ArgumentList = '',
     [Switch]$NoExit = $false,
+    [Switch]$NoCommit = $false,
 
     [Int32]$Speed = (Get-Random) % 100,
     [String][Alias("Target")]$Path = '',
@@ -129,9 +136,9 @@ Param(
     [Switch][Alias("Restore")]$DotnetRestore = $false,
     [Switch][Alias("Build")]$DotnetBuild = $false,
 
-    [String][Alias("o", "Only")]$Include = '',
+    [String][Alias("i")]$Include = '',
     [Switch][Alias("q")]$Quick = $false,
-    [String][Alias("e", "Not")]$Exclude = '',
+    [String][Alias("e")]$Exclude = '',
 
     [Switch][Alias("a")]$Abort = $false,
     [Switch][Alias("d", "Nuke", "Clean")]$DeleteBranches = $false,
@@ -422,7 +429,7 @@ if($repos.Count -lt 1)
 }
 
 # ok we have some repositories, now we just need to extract and filter them
-# if we have a value in -Only
+# if we have a value in -Include
 if($Include.Length -gt 0)
 {
     $included = StringToList -Arg $Include -Trim
@@ -501,7 +508,7 @@ if($command.invokedGit -or $command.invokedOp)
 
         WriteBarTop -Name $repo.name -Bran $repo.branch -Level $repo.level
 
-        if($Abort)
+        if($Abort -or ($Merge.Length -gt 0))
         {
             WriteBarEvent "git merge --abort"
             Git merge --abort
@@ -511,6 +518,11 @@ if($command.invokedGit -or $command.invokedOp)
         {
             WriteBarEvent "git stash --include-untracked"
             Git stash --include-untracked
+        }
+
+        if($Fetch -or ($Checkout.Length -gt 0)) {
+            WriteBarEvent "git fetch"
+            Git fetch
         }
 
         foreach($dest in StringToList $Checkout)
@@ -555,11 +567,6 @@ if($command.invokedGit -or $command.invokedOp)
             Git stash clear
         }
 
-        if($Fetch) {
-            WriteBarEvent "git fetch"
-            Git fetch
-        }
-
         if($Pull) {
             WriteBarEvent "git pull"
             Git pull
@@ -567,13 +574,14 @@ if($command.invokedGit -or $command.invokedOp)
 
         if($Merge.Length -gt 0)
         {
-            if(-Not $Abort)
+            if($NoCommit)
             {
-                WriteBarEvent "git merge --abort"
-                Git merge --abort
+                WriteBarEvent "git merge --no-commit --no-ff $Merge"
+                Git merge --no-commit --no-ff $Merge
+            } else {
+                WriteBarEvent "git merge --no-ff $Merge"
+                Git merge --no-ff $Merge
             }
-            WriteBarEvent "git merge --no-ff $Merge"
-            Git merge --no-ff $Merge
         } elseif($Branch.Length -gt 0) {
             WriteBarEvent "git checkout -b $Branch"
             Git checkout -b $Branch
@@ -598,7 +606,7 @@ if($command.invokedGit -or $command.invokedOp)
                     # TODO : display information about repo and ask user for
                     # manual confirmation of push.
                     # As an additional measure, restrict use of "push" in -g
-                    # to coincide with a non-empty -Only parameter?
+                    # to coincide with a non-empty -Include parameter?
                     ErrorLog "git push is not allowed"
                     Set-Location $dir.original
                     return
