@@ -117,20 +117,20 @@
 #>
 
 Param(
-    [Switch][Alias("Detect")]$Scan = $false,
-    [String][Alias("Folder")]$ForDirectory = '.git',
-    [String][Alias("Executable")]$ForFile = '',
+    [Switch]$Scan = $false,
+    [String]$ForDirectory = '.git',
+    [String]$ForFile = '',
     [Int32]$Depth = 3,
 
     [Switch][Alias("h")]$Help = $false,
 
-    [Switch][Alias("Launch")]$Start = $false,
+    [Switch]$Start = $false,
     [String]$ArgumentList = '',
     [Switch]$NoExit = $false,
     [Switch]$NoCommit = $false,
 
     [Int32]$Speed = (Get-Random) % 100,
-    [String][Alias("Target")]$Path = '',
+    [String]$Path = '',
 
     [Switch][Alias("Clear")]$DotnetClearLocals = $false,
     [Switch][Alias("Restore")]$DotnetRestore = $false,
@@ -141,7 +141,7 @@ Param(
     [String][Alias("e")]$Exclude = '',
 
     [Switch][Alias("a")]$Abort = $false,
-    [Switch][Alias("d", "Nuke", "Clean")]$DeleteBranches = $false,
+    [Switch][Alias("d", "Clean")]$DeleteBranches = $false,
     [Switch][Alias("f")]$Fetch = $false,
     [Switch][Alias("l")]$List = $false,
     [Switch][Alias("p")]$Pull = $false,
