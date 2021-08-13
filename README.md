@@ -147,7 +147,7 @@ Convenience flag for `-ArgumentList "-NoExit"`. This stops Powershell instances 
 
 ### `-Quick`, `-q`
 
-Removes the trailing ribbon when showing output. This
+Removes the trailing ribbon when showing output. This command can also be used entirely by itself to display all known repositories and their current branches.
 
 ### `-Scan`
 
