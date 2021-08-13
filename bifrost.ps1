@@ -273,10 +273,12 @@ function ScanAndSave {
         }
     }
 
-    if($repos.Count -gt 0)
+    if($repos.Count -gt 1)
     {
         Write-Host "$($repos.Count) repos found. writing $File"
         $repos | ConvertTo-Json | Out-File -FilePath $File
+    } else {
+        ErrorLog "error: could not find multiple repositories"
     }
 }
 
