@@ -5,17 +5,13 @@
 3. `bifrost -Scan`
 4. `bifrost -q`
 
-Bifrost will use your current working directory if you do not specify a `-Path`.
-Look at the `bifrost.json` file that is generated after `-Scan`. You can
-manually change this file to execute custom commands. For example, when running
-an npm project, change the value to `"npm i; npm start"`.
+bifrost will use your current working directory if you do not specify a `-Path`. Look at the `bifrost.json` file that is generated after `-Scan`. You can manually change this file to execute custom commands. For example, when running an npm project, change the value to `"npm i; npm start"`.
 
-If Bifrost can't find the directory for an item in `bifrost.json`, it executes
-the command at `-Path`, which defaults to the current working directory.
+If bifrost can't find the directory for an item in `bifrost.json`, it executes the command at `-Path`, which defaults to the current working directory.
 
 # Usage
 
-## Config Arguments
+## 📃 Config Arguments
 
 These arguments handle bifrost configuration. These are arguments that you might want to set permanently by creating your own Powershell alias for bifrost.
 
@@ -43,7 +39,7 @@ Random by default. Sets the 'speed' of the colored ribbon as repository output i
 
 Enables verbose logging.
 
-## Git Arguments
+## 🔃 Git Arguments
 
 These arguments execute git commands in all repositories.
 
@@ -109,7 +105,7 @@ Used with `-Merge` to execute `git merge --no-commit --no-ff <branch>`.
 
 Used with `-Branch` to automatically push the new branch to origin. This is the only place where bifrost uses `git push` so be careful when using this.
 
-## Other Arguments
+## 📎 Other Arguments
 
 These arguments are not git specific, but handle things like running all repositories.
 
@@ -159,14 +155,9 @@ Starts all of the repos. Make sure that you run this from an elevated terminal, 
 
 # Non-Repo -Start Values
 
-Bifrost works best when it's managing one directory that contains many git
-repositories, which contain executable files or files that facilitate
-executing those repositories.
+bifrost works best when it's managing one directory that contains many git repositories, which contain executable files or files that facilitate executing those repositories.
 
-Sometimes, however, you might want to run some other command along with a batch
-of repositories. For that, manually insert a new key/value pair into your
-`bifrost.json`. The key that you give it will allow you to specificy it in the
-`-Include` parameter, while the value will be executed on `-Start`.
+Sometimes, however, you might want to run some other command along with a batch of repositories. For that, manually insert a new key/value pair into your `bifrost.json`. The key that you give it will allow you to specificy it in the `-Include` parameter, while the value will be executed on `-Start`.
 
 For example, let's say you have three repositories in `C:/dev/`:
 
@@ -176,14 +167,10 @@ For example, let's say you have three repositories in `C:/dev/`:
 
     C:/dev/third
 
-You want to run all of their `start.exe` files, but you also want to execute a
-non-repository bound command one time.
+You want to run all of their `start.exe` files, but you also want to execute a non-repository bound command one time.
 
 1. `bifrost -Scan -ForFile start.exe`
 2. add `"extra": "echo 'hello world'",` to the `bifrost.json`
 3. `bifrost -Start -Include first,second,third,extra -NoExit`
 
-When Bifrost executes files from the `bifrost.json`, it parses them into an
-ordered list, which is sorted alphabetically. It just so happens that in this
-example the order of execution is `extra`, `first`, `second`, `third` because
-that sequence is already in alphabetic order.
+When bifrost executes files from the `bifrost.json`, it parses them into an ordered list, which is sorted alphabetically. It just so happens that in this example the order of execution is `extra`, `first`, `second`, `third` because that sequence is already in alphabetic order.
