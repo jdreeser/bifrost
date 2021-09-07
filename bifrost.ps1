@@ -132,9 +132,10 @@ Param(
     [Int32]$Speed = (Get-Random) % 100,
     [String]$Path = '',
 
+    [String][Alias("Config")]$DotnetConfig = '',
     [Switch][Alias("Clear")]$DotnetClearLocals = $false,
-    [Switch][Alias("Restore")]$DotnetRestore = $false,
     [Switch][Alias("Build")]$DotnetBuild = $false,
+    [Switch][Alias("Restore")]$DotnetRestore = $false,
 
     [String][Alias("i")]$Include = '',
     [Switch][Alias("q")]$Quick = $false,
@@ -309,6 +310,14 @@ function StringToList {
     }
 }
 
+# GetPad returns the pad length based on the window's width
+function GetPad {
+    param(
+        [Int32]$Level = 0
+    )
+    return ($Host.UI.RawUI.WindowSize.Width - $Level) % $Host.UI.RawUI.WindowSize.Width
+}
+
 # Announces that a new repo is being processed
 function WriteBarTop {
     param(
@@ -318,7 +327,7 @@ function WriteBarTop {
     )
     $pre = $box.tl + $box.h + $Name + $box.h
     $post = $Bran + $box.arr
-    $padRule = ((($Host.UI.RawUI.WindowSize.Width - $Level) % $Host.UI.RawUI.WindowSize.Width) - $post.Length)
+    $padRule = (GetPad -Level $Level) - $post.Length
     if($padRule -lt 0)
     {
         $padRule = 0
@@ -336,7 +345,7 @@ function WriteBarBottom {
     if(-Not $Quick)
     {
         $second = $Bran + $box.arr;
-        $padRule = (($Host.UI.RawUI.WindowSize.Width - $Level) % $Host.UI.RawUI.WindowSize.Width) - $second.Length
+        $padRule = (GetPad -Level $Level) - $second.Length
         if($padRule -lt 0)
         {
             $padRule = 0
@@ -635,8 +644,14 @@ if($command.invokedGit -or $command.invokedOp)
             {
                 if($DotnetRestore)
                 {
-                    WriteBarEvent "dotnet restore --interactive"
-                    dotnet restore --interactive
+                    if ($DotnetConfig.Length -gt 0)
+                    {
+                        WriteBarEvent "dotnet restore --interactive --configfile ${DotnetConfig}"
+                        dotnet restore --interactive --configfile $DotnetConfig
+                    } else {
+                        WriteBarEvent "dotnet restore --interactive"
+                        dotnet restore --interactive
+                    }
                 }
                 if($DotnetBuild)
                 {
@@ -675,6 +690,7 @@ if($Start)
             $ArgumentList = "$ArgumentList -NoExit"
         }
         $SetLocation = CascadePath -dir $dir.current -name $key -file $item
+        # unused process return that might be useful somehow for some feature
         $proc = Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs -PassThru
         $pre = "X$($box.h)[$key]$($box.h)[$(Split-Path -Leaf $item)]"
         $pre = $pre.PadRight((Get-Random($HOST.UI.RawUI.WindowSize.Width - 1)), $box.h)
