@@ -31,10 +31,6 @@ Null by default. Used with `-Scan` to look for sub-directories which contain the
 
 Current working directory by default. Use this to run bifrost in a different location.
 
-### `-Config <string>`
-
-Used with -DotnetRestore. Allows you to specify a dotnet config file for restore.
-
 ### `-Speed <number>`
 
 Random by default. Sets the 'speed' of the colored ribbon as repository output is printed.
@@ -116,6 +112,10 @@ These arguments are not git specific, but handle things like running all reposit
 ### `-ArgumentList <string>`
 
 Arguments that will be passed to Powershell when it is invoked for each repository on `-Start`.
+
+### `-DotnetConfig <string>`, `-Config`
+
+Used with -DotnetRestore. Allows you to specify a dotnet config file for restore.
 
 ### `-DotnetBuild`, `-Build`
 
