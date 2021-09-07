@@ -31,6 +31,10 @@ Null by default. Used with `-Scan` to look for sub-directories which contain the
 
 Current working directory by default. Use this to run bifrost in a different location.
 
+### `-Config <string>`
+
+Used with -DotnetRestore. Allows you to specify a dotnet config file for restore.
+
 ### `-Speed <number>`
 
 Random by default. Sets the 'speed' of the colored ribbon as repository output is printed.

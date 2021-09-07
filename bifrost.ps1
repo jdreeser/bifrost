@@ -46,6 +46,10 @@
     -Path <string>
 
     Directory location for the script to run in. This should be a folder that contains many other repositories. If you do not provide a value for -Path, then it defaults to the current working directory.
+.PARAMETER DotnetConfig
+    -Config <string>
+
+    Path to the config file you want to use with dotnet restore --configfile
 .PARAMETER DotnetClearLocals
     Executes dotnet nuget locals --clear one time in the root directory.
 .PARAMETER DotnetRestore
