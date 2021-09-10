@@ -658,8 +658,16 @@ if($command.invokedGit -or $command.invokedOp)
         if($Log)
         {
             $gitOutput = Git --no-pager log -1 --format=" %h_[%aN]_%s"
-            $author = $gitOutput.Split("_")[1].Trim("[]")
-            WriteRainbowArray -Arguments $gitOutput -Colors $Color,($Colors[(StringToInt -Str $author) % $Colors.Count]),$Host.UI.RawUI.ForegroundColor
+            if($gitOutput)
+            {
+                $tempList = $gitOutput.Split("_")
+                $author = "unknown"
+                if($tempList.Count -gt 1)
+                {
+                    $author = $tempList[1].Trim("[]")
+                }
+                WriteRainbowArray -Arguments $gitOutput -Colors $Color,($Colors[(StringToInt -Str $author) % $Colors.Count]),$Host.UI.RawUI.ForegroundColor
+            }
         }
 
         if($List)
@@ -696,7 +704,7 @@ if($command.invokedGit -or $command.invokedOp)
 
         if(-not $Quick)
         {
-            WriteBar -Tail $repo.branch -Separators $Box[3],$Box[2],$Box[0]
+            WriteBar -Tail $repo.branch -Separators $Box[3],$Box[2],$Box[0] -Colors $Color,White,$Colors[(StringToInt -Str $repo.branch) % $Colors.Count]
         }
 
         GetNextColor
