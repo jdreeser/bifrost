@@ -133,7 +133,7 @@ Param(
     [Switch]$NoExit = $false,
     [Switch]$NoCommit = $false,
 
-    [Int32]$Speed = (Get-Random) % 100,
+    [Int32]$Speed = (Get-Random -Minimum 0 -Maximum 5 ),
     [String]$Path = '',
 
     [String][Alias("Config")]$DotnetConfig = '',
@@ -149,6 +149,24 @@ Param(
     [Switch][Alias("d", "Clean")]$DeleteBranches = $false,
     [Switch][Alias("f")]$Fetch = $false,
     [Switch][Alias("l")]$List = $false,
+    [Switch]$Log = $false,
+    [Float]$Scale = 1.0,
+    [Array]$Colors = @(
+        'Red'
+        'Yellow'
+        'Green'
+        'Cyan'
+        'Blue'
+        'Magenta'
+    ),
+    [Array]$Box = @(
+        [char]0x25Ba,
+        [char]0x2554,
+        [char]0x2550,
+        [char]0x255A,
+        [char]0x2560
+    ),
+    [Switch]$Plain = $false,
     [Switch][Alias("p")]$Pull = $false,
     [Switch][Alias("x")]$Stash = $false,
     [Switch][Alias("s")]$Status = $false,
@@ -163,13 +181,15 @@ Param(
     [String][Alias("g")]$GitCommand = ''
 )
 
+$ErrorActionPreference = "Stop"
+
 
 # NONSENSE PARAMETER DETECTION
 ################################################################################
 
 $command = @{
-    "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick -or $GitCommand)
-    "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore -or $DotnetBuild )
+    "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick -or $GitCommand -or $Log)
+    "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore -or $DotnetBuild)
     "invokedScan" = (($For.Length -gt 0) -or ($Scan))
 }
 
@@ -182,27 +202,31 @@ if((-Not $command.invokedGit) -and (-Not $command.invokedOp) -and (-Not $command
 # GLOBALS PRE-SETUP
 ################################################################################
 
-$colors = @(
-    'Red'
-    'Yellow'
-    'Green'
-    'Cyan'
-    'Blue'
-    'Magenta'
-)
+function mod {
+    return [Math]::Abs($args[0] % $args[1])
+}
 
-$lastColor = $colors[(Get-Random) % $colors.Count]
-$color = (Get-Random) % $colors.Count;
+if($Plain)
+{
+    $Colors = @(
+        $Host.UI.RawUI.ForegroundColor
+    )
+    $Speed = 0
+}
 
-$box = @{
-    'arr' = [char]0x25Ba
-    'tl' = [char]0x2554
-    'h' = [char]0x2550
-    'tr' = [char]0x2557
-    'v' = [char]0x2551
-    'bl' = [char]0x255A
-    'br' = [char]0x255D
-    'mid' = [char]0x2560
+$color = ($Colors | Get-Random)
+$color_index = [array]::IndexOf($Colors, $Color)
+
+$max_width = [System.Math]::Min($Host.UI.RawUI.WindowSize.Width, [Math]::Abs([Int32]($Host.UI.RawUI.WindowSize.Width * $Scale)))
+$indent = 0
+
+function GetNextColor {
+    $script:color_index = mod ($color_index + 1) $Colors.Count 
+    $script:color = $Colors[$color_index]
+}
+
+function GetNextIndent {
+    $script:indent = mod ($script:indent + $Speed) $max_width
 }
 
 $dir = @{
@@ -221,20 +245,6 @@ $sep = [IO.Path]::DirectorySeparatorChar
 
 # FUNCTION DEFINITIONS
 ################################################################################
-
-# Writes the args to the console with a color, then increments that color.
-function Write-Rainbow {
-    param(
-        [Switch]$NoNewline = $false
-    )
-    if ($NoNewline) {
-        Write-Host $args -ForegroundColor $colors[$color] -NoNewline
-    } else {
-        Write-Host $args -ForegroundColor $colors[$color]
-    }
-    $script:lastColor = $colors[$color]
-    $script:color = ($color + 1) % $colors.Length
-}
 
 # Returns the 'name' of the repo
 function GetRepoName {
@@ -283,7 +293,7 @@ function ScanAndSave {
         Write-Host "$($repos.Count) repos found. writing $File"
         $repos | ConvertTo-Json | Out-File -FilePath $File
     } else {
-        ErrorLog "error: could not find multiple repositories"
+        ErrorLog "could not find multiple repositories"
     }
 }
 
@@ -314,61 +324,77 @@ function StringToList {
     }
 }
 
-# GetPad returns the pad length based on the window's width
-function GetPad {
-    param(
-        [Int32]$Level = 0
+function StringToInt {
+    Param(
+        [String]$Str
     )
-    return ($Host.UI.RawUI.WindowSize.Width - $Level) % $Host.UI.RawUI.WindowSize.Width
+
+    $max = 5
+    $total = 0
+    foreach($i in [byte[]][char[]]$Str[-$max..-1])
+    {
+        $total = $total + $i
+    }
+    return $total
 }
 
-# Announces that a new repo is being processed
-function WriteBarTop {
-    param(
-        [String]$Name,
-        [String]$Bran,
-        [Int32]$Level = 0
+function WriteRainbowArray {
+    Param(
+        [String]$Arguments = "",
+        [Array]$Colors = @(
+            $script:Color,
+            ($Colors | Get-Random),
+            $Host.UI.RawUI.ForeGroundColor
+        )
     )
-    $pre = $box.tl + $box.h + $Name + $box.h
-    $post = $Bran + $box.arr
-    $padRule = (GetPad -Level $Level) - $post.Length
-    if($padRule -lt 0)
-    {
-        $padRule = 0
+    $Arguments = $Arguments.substring(0, [System.Math]::Min($max_width -1, $Arguments.Length))
+    $ArgumentSplit = $Arguments.Split("_")
+    foreach($argument in $ArgumentSplit) {
+        Write-Host -NoNewLine -ForeGroundColor $Colors[([array]::IndexOf($ArgumentSplit, $argument) % $Colors.Count)] "$argument "
     }
-    Write-Rainbow $pre.PadRight($padRule, $box.h) -NoNewline;
-    Write-Host $post -ForegroundColor $lastColor
+    Write-Host
 }
 
-# Visually close out the repo being processed
-function WriteBarBottom {
-    param(
-        [String]$Bran,
-        [Int32]$Level = 0
+function WriteBar {
+    Param(
+        [String]$Head = '',
+        [String]$Tail = '',
+        [Array]$Separators = @(
+            $Box[1],
+            $Box[2],
+            $Box[0]
+        ),
+        [Array]$Colors = @(
+            $Color,
+            $Host.UI.RawUI.ForeGroundColor,
+            $Host.UI.RawUI.ForeGroundColor
+        ),
+        [String]$Width = $max_width - $indent,
+        [Switch]$Short = $false
     )
-    if(-Not $Quick)
+    Write-Host $Separators[0] -NoNewline -ForegroundColor $Colors[0]
+    Write-Host $Separators[1] -NoNewline -ForegroundColor $Colors[0]
+    Write-Host $Head -NoNewline -ForegroundColor $Colors[1]
+    if(-not $Short)
     {
-        $second = $Bran + $box.arr;
-        $padRule = (GetPad -Level $Level) - $second.Length
-        if($padRule -lt 0)
-        {
-            $padRule = 0
-        }
-        $pre = $box.bl + $box.h
-        $first = $pre.PadRight($padRule, $box.h);
-        Write-Host "$first$second" -ForegroundColor $lastColor
+        Write-Host "".PadRight([System.Math]::Max(0, ($Width - ($Head.Length + $Tail.Length + 3))), $Separators[1]) -NoNewLine -ForegroundColor $Colors[0]
+        Write-Host $Tail -NoNewline -ForegroundColor $Colors[2]
+        Write-Host $Separators[2] -NoNewLine -ForegroundColor $Colors[0]
     }
+    Write-Host
 }
 
 # Log normal events while a repo is being processed
 function WriteBarEvent {
-    $pre = $box.mid + $box.h + $args
-    Write-Host $pre -ForegroundColor $lastColor
+    if(-not $Quick)
+    {
+        WriteBar -Head $args -Separators $Box[4],$Box[2],$Box[0] -Short
+    }
 }
 
 # Log an error
 function ErrorLog {
-    Write-Host "$args ".PadRight(80, '!') -ForegroundColor 'Red'
+    Write-Host "error: $args ".PadRight(80, '!') -ForegroundColor 'Red'
 }
 
 function CascadePath {
@@ -439,7 +465,7 @@ if($repos.Count -lt 1)
 # out.
 if($repos.Count -lt 1)
 {
-    ErrorLog "error: no repositories found"
+    ErrorLog "no repositories found"
     Exit
 }
 
@@ -491,17 +517,13 @@ if($DotnetClearLocals)
 
 if($command.invokedGit -or $command.invokedOp)
 {
-    $num = 0
     foreach($r in $repos.Keys)
     {
         $repo = @{
             "path" = (Join-Path -Path $dir.current -ChildPath $r)
-            "num" = $num + 1
-            "level" = 0
             "branch" = ""
             "name" = $r
         }
-        $repo.level = ($Host.UI.RawUI.WindowSize.Width - ($repo.num * $Speed))
         # before doing anything, make sure we can access this repo's path. if we
         # can't do that, give up entirely on this repo and move on to the next
         # one.
@@ -509,19 +531,17 @@ if($command.invokedGit -or $command.invokedOp)
         {
             if($Verbose)
             {
-                ErrorLog "error: cannot find path $($repo.path)"
+                ErrorLog "cannot find path $($repo.path)"
             }
             continue
         }
-
-        $num++
 
         # otherwise we're good, so we can start executing commands
         Set-Location -Path $repo.path
 
         $repo.branch = (Git branch --show-current).Trim(" ")
 
-        WriteBarTop -Name $repo.name -Bran $repo.branch -Level $repo.level
+        WriteBar -Head $repo.name -Tail $repo.branch -Colors $Color,$Host.UI.RawUI.ForegroundColor,($Colors[(StringToInt -Str $repo.branch) % $Colors.Count])
 
         if($Abort -or ($Merge.Length -gt 0))
         {
@@ -559,7 +579,7 @@ if($command.invokedGit -or $command.invokedOp)
                 $repo.branch = Git branch --show-current
                 if($repo.branch -eq $dest)
                 {
-                    WriteBarEvent "$($repo.branch)$($box.arr)"
+                    WriteBarEvent "$($repo.branch)$($Box[0])"
                     break
                 }
             }
@@ -635,6 +655,13 @@ if($command.invokedGit -or $command.invokedOp)
             Git status
         }
 
+        if($Log)
+        {
+            $gitOutput = Git --no-pager log -1 --format=" %h_[%aN]_%s"
+            $author = $gitOutput.Split("_")[1].Trim("[]")
+            WriteRainbowArray -Arguments $gitOutput -Colors $Color,($Colors[(StringToInt -Str $author) % $Colors.Count]),$Host.UI.RawUI.ForegroundColor
+        }
+
         if($List)
         {
             WriteBarEvent "git --no-pager branch --list"
@@ -663,11 +690,17 @@ if($command.invokedGit -or $command.invokedOp)
                     dotnet build
                 }
             } else {
-                ErrorLog "error: dotnet invoked, but no csproj file found"
+                ErrorLog "dotnet invoked, but no csproj file found"
             }
         }
 
-        WriteBarBottom -Bran $repo.branch -Level $repo.level
+        if(-not $Quick)
+        {
+            WriteBar -Tail $repo.branch -Separators $Box[3],$Box[2],$Box[0]
+        }
+
+        GetNextColor
+        GetNextIndent
     }
 }
 
@@ -696,9 +729,8 @@ if($Start)
         $SetLocation = CascadePath -dir $dir.current -name $key -file $item
         # unused process return that might be useful somehow for some feature
         $proc = Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs -PassThru
-        $pre = "X$($box.h)[$key]$($box.h)[$(Split-Path -Leaf $item)]"
-        $pre = $pre.PadRight((Get-Random($HOST.UI.RawUI.WindowSize.Width - 1)), $box.h)
-        Write-Rainbow "$pre$($box.arr)"
+        WriteBar -Head "[$key]" -Tail "$(Split-Path -Leaf $item)" -Separators $Box[0],$Box[0],$Box[0]
+        GetNextColor
     }
 }
 
