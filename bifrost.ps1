@@ -167,6 +167,7 @@ Param(
         [char]0x2560
     ),
     [Switch]$Plain = $false,
+    [String]$Filter = '',
     [Switch][Alias("p")]$Pull = $false,
     [Switch][Alias("x")]$Stash = $false,
     [Switch][Alias("s")]$Status = $false,
@@ -236,10 +237,7 @@ $dir = @{
 
 $repos = [ordered]@{}
 
-$file = @{
-    "name" = "bifrost.json"
-    "path" = ""
-}
+# $repos = [ordered]@{}
 
 $sep = [IO.Path]::DirectorySeparatorChar
 
@@ -256,7 +254,10 @@ function GetRepoName {
 
 # Returns the proper filepath that saves results from scan.
 function GetFilename {
-    return (Join-Path -Path $dir.current -ChildPath $file.name).ToString()
+    Param(
+        [String]$File = ".bifrost.json"
+    )
+    return (Join-Path -Path $dir.current -ChildPath $File).ToString()
 }
 
 # Scans the -Path given for repos and saves them if at least 1 was found.
@@ -272,7 +273,10 @@ function ScanAndSave {
         foreach($d in $directories)
         {
             Get-ChildItem -Force -Depth $Depth -Directory -Filter $d | ForEach-Object {
-                $repos[(GetRepoName -Name $_.Parent.Name)] = $_.Parent.FullName
+                $repos.(GetRepoName -Name $_.Parent.Name) = @{
+                    "path" = $_.Parent.FullName
+                    "branch" = ""
+                }
             }
         }
     }
@@ -283,14 +287,22 @@ function ScanAndSave {
         foreach($f in $files)
         {
             Get-ChildItem -Force -Depth $Depth -File -Filter $f | ForEach-Object {
-                $repos[(GetRepoName -Name $_.DirectoryName)] = $_.FullName
+                $repos.(GetRepoName -Name $_.DirectoryName) = @{ "path" = $_.FullName }
             }
         }
     }
 
+    Write-Host "$($repos.Count) repos found. writing $File"
+    Save -File $File
+}
+
+function Save {
+    Param(
+        [String]$File
+    )
+
     if($repos.Count -gt 1)
     {
-        Write-Host "$($repos.Count) repos found. writing $File"
         $repos | ConvertTo-Json | Out-File -FilePath $File
     } else {
         ErrorLog "could not find multiple repositories"
@@ -304,7 +316,11 @@ function LoadFromSave {
     )
     $object = Get-Content -Path $File | ConvertFrom-Json
     $object | Get-Member -MemberType *Property | ForEach-Object {
-        $repos.($_.name) = $object.($_.name);
+        $repo = $_
+        $repos.($repo.name) = $object.($repo.name);
+        $object.($repo.name) | Get-Member -MemberType *Property | ForEach-Object {
+            $repos.($repo.name).($_.name) = $object.($repo.name).($_.name)
+        }
     }
 }
 
@@ -441,15 +457,17 @@ if ($Path -ne '')
 
 $dir.current = (Get-Location).ToString()
 
-$file.path = GetFilename
+$filepath = GetFilename
+
+Write-Host $filepath
 
 if($Scan)
 {
-    ScanAndSave -File $file.path
+    ScanAndSave -File $filepath
 }
-elseif(Test-Path -Path $file.path) {
+elseif(Test-Path -Path $filepath) {
     # we found a file that looks like we can read it, so we try to load it.
-    LoadFromSave -File $file.path
+    LoadFromSave -File $filepath
 }
 
 # maybe after all of that we didn't get any repos after all. in that case we
@@ -458,7 +476,7 @@ if($repos.Count -lt 1)
 {
     # we echo this to the user because they did not request it
     Write-Host "no repo scan data found. scanning now..."
-    ScanAndSave -File $file.path
+    ScanAndSave -File $filepath
 }
 
 # we've tried everything we could, but found no repositories. give up and error
@@ -512,6 +530,9 @@ if($DotnetClearLocals)
     dotnet nuget locals --clear all
 }
 
+
+$filterBranches = StringToList $Filter
+
 # MAIN LOGIC
 ################################################################################
 
@@ -519,29 +540,34 @@ if($command.invokedGit -or $command.invokedOp)
 {
     foreach($r in $repos.Keys)
     {
-        $repo = @{
-            "path" = (Join-Path -Path $dir.current -ChildPath $r)
-            "branch" = ""
-            "name" = $r
-        }
+        $repos.$r.path = (Join-Path -Path $dir.current -ChildPath $r)
+
         # before doing anything, make sure we can access this repo's path. if we
         # can't do that, give up entirely on this repo and move on to the next
         # one.
-        if(-Not (Test-Path -Path $repo.path))
+        if(-Not (Test-Path -Path $repos.$r.path))
         {
             if($Verbose)
             {
-                ErrorLog "cannot find path $($repo.path)"
+                ErrorLog "cannot find path $($repos.$r.path)"
             }
             continue
         }
 
         # otherwise we're good, so we can start executing commands
-        Set-Location -Path $repo.path
+        Set-Location -Path $repos.$r.path
 
-        $repo.branch = (Git branch --show-current).Trim(" ")
+        $repos.$r.branch = (Git branch --show-current)
 
-        WriteBar -Head $repo.name -Tail $repo.branch -Colors $Color,$Host.UI.RawUI.ForegroundColor,($Colors[(StringToInt -Str $repo.branch) % $Colors.Count])
+        if($filterBranches.Length -gt 0)
+        {
+            if(-not $filterBranches.Contains($repos.$r.branch))
+            {
+                continue
+            }
+        }
+
+        WriteBar -Head $r -Tail $repos.$r.branch -Colors $Color,$Host.UI.RawUI.ForegroundColor,($Colors[(StringToInt -Str $repos.$r.branch) % $Colors.Count])
 
         if($Abort -or ($Merge.Length -gt 0))
         {
@@ -566,7 +592,7 @@ if($command.invokedGit -or $command.invokedOp)
             {
                 continue
             }
-            if(($dest -eq $repo.branch))
+            if(($dest -eq $repos.$r.branch))
             {
                 if($Verbose)
                 {
@@ -576,10 +602,10 @@ if($command.invokedGit -or $command.invokedOp)
             } else {
                 WriteBarEvent "git checkout $dest"
                 Git checkout $dest
-                $repo.branch = Git branch --show-current
-                if($repo.branch -eq $dest)
+                $repos.$r.branch = Git branch --show-current
+                if($repos.$r.branch -eq $dest)
                 {
-                    WriteBarEvent "$($repo.branch)$($Box[0])"
+                    WriteBarEvent "$($repos.$r.branch)$($Box[0])"
                     break
                 }
             }
@@ -589,7 +615,7 @@ if($command.invokedGit -or $command.invokedOp)
         {
             Git --no-pager branch --list | ForEach-Object {
                 $formatted = $_.Trim(" *")
-                if($formatted -ne $repo.branch)
+                if($formatted -ne $repos.$r.branch)
                 {
                     WriteBarEvent "git branch -D $formatted"
                     Git branch -D $formatted
@@ -704,7 +730,7 @@ if($command.invokedGit -or $command.invokedOp)
 
         if(-not $Quick)
         {
-            WriteBar -Tail $repo.branch -Separators $Box[3],$Box[2],$Box[0] -Colors $Color,White,$Colors[(StringToInt -Str $repo.branch) % $Colors.Count]
+            WriteBar -Tail $repos.$r.branch -Separators $Box[3],$Box[2],$Box[0] -Colors $Color,White,$Colors[(StringToInt -Str $repos.$r.branch) % $Colors.Count]
         }
 
         GetNextColor
@@ -721,8 +747,7 @@ if($Start)
 {
     foreach($key in $repos.Keys)
     {
-        $item = $repos[$key]
-        if($item.Length -lt 1)
+        if($repos.$key.path.Length -lt 1)
         {
             continue
         }
@@ -734,12 +759,20 @@ if($Start)
         {
             $ArgumentList = "$ArgumentList -NoExit"
         }
-        $SetLocation = CascadePath -dir $dir.current -name $key -file $item
+        $SetLocation = CascadePath -dir $dir.current -name $key -file $repos.$key.path
+
+        if((-not $filterBranches.Contains($repos.$key.branch)) -and ($filterBranches.Count -gt 0))
+        {
+            continue
+        }
+
         # unused process return that might be useful somehow for some feature
-        $proc = Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $item" -Verb RunAs -PassThru
-        WriteBar -Head "[$key]" -Tail "$(Split-Path -Leaf $item)" -Separators $Box[0],$Box[0],$Box[0]
+        $proc = Start-Process -FilePath powershell.exe -ArgumentList "$ArgumentList","Set-Location $SetLocation; $($repos.$key.path)" -Verb RunAs -PassThru
+        WriteBar -Head "[$key]" -Tail "$(Split-Path -Leaf $repos.$key.branch)" -Separators $Box[0],$Box[0],$Box[0]
         GetNextColor
     }
 }
+
+Save -File $filepath
 
 Set-Location $dir.original
