@@ -1,5 +1,12 @@
 # Quickstart
 
+```powershell
+git clone git@github.com:jdreeser/bifrost $env:PSModulePath.Split(";")[0]
+Add-Content $profile "`nImport-Module bifrost"
+Get-Module -ListAvailable -Refresh
+& $profile
+```
+
 1. Make sure you can run ps1 scripts locally
 2. `Set-Alias -Name "bifrost" -Value "path/to/bifrost.ps1"`
 3. `bifrost -Scan`
