@@ -183,8 +183,8 @@ Param(
     [String][Alias("g")]$GitCommand = ''
 )
 
-. $PSScriptRoot\format.ps1
 . $PSScriptRoot\io.ps1
+. $PSScriptRoot\format.ps1
 . $PSScriptRoot\repo.ps1
 
 $ErrorActionPreference = "Stop"
@@ -206,10 +206,6 @@ if((-Not $command.invokedGit) -and (-Not $command.invokedOp) -and (-Not $command
 
 # GLOBALS PRE-SETUP
 ################################################################################
-
-function mod {
-    return [Math]::Abs($args[0] % $args[1])
-}
 
 if($Plain)
 {
@@ -235,201 +231,7 @@ $dir = @{
     "current" = ""
 }
 
-$repos = [ordered]@{}
-
-# $repos = [ordered]@{}
-
-$sep = [IO.Path]::DirectorySeparatorChar
-
-# FUNCTION DEFINITIONS
-################################################################################
-
-# Scans the -Path given for repos and saves them if at least 1 was found.
-function ScanAndSave {
-    param(
-        [String]$File
-    )
-    Write-Host "scanning for $ForDirectory and $ForFile"
-
-    if($ForDirectory.Length -gt 0)
-    {
-        $directories = $ForDirectory.Split(" ")
-        foreach($d in $directories)
-        {
-            Get-ChildItem -Force -Depth $Depth -Directory -Filter $d | ForEach-Object {
-                $repos.(GetRepoName -Name $_.Parent.Name) = @{
-                    "path" = $_.Parent.FullName
-                    "branch" = ""
-                }
-            }
-        }
-    }
-
-    if($ForFile.Length -gt 0)
-    {
-        $files = $ForFile.Split(" ")
-        foreach($f in $files)
-        {
-            Get-ChildItem -Force -Depth $Depth -File -Filter $f | ForEach-Object {
-                $repos.(GetRepoName -Name $_.DirectoryName) = @{ "path" = $_.FullName }
-            }
-        }
-    }
-
-    Write-Host "$($repos.Count) repos found. writing $File"
-    Save -File $File
-}
-
-function Save {
-    Param(
-        [String]$File
-    )
-
-    if($repos.Count -gt 1)
-    {
-        $repos | ConvertTo-Json | Out-File -FilePath $File
-    } else {
-        ErrorLog "could not find multiple repositories"
-    }
-}
-
-# Tries to load repository data
-function LoadFromSave {
-    param(
-        [String]$File
-    )
-    $object = Get-Content -Path $File | ConvertFrom-Json
-    $object | Get-Member -MemberType *Property | ForEach-Object {
-        $repo = $_
-        $repos.($repo.name) = $object.($repo.name);
-        $object.($repo.name) | Get-Member -MemberType *Property | ForEach-Object {
-            $repos.($repo.name).($_.name) = $object.($repo.name).($_.name)
-        }
-    }
-}
-
-# StringToList turns a string into a list of strings
-function StringToList {
-    param(
-        [String]$Arg,
-        [Switch]$Trim = $false
-    )
-    return $Arg.Split(" ") | ForEach-Object {
-        if($Trim)
-        {
-            $_.Trim(".", "\", "/", $sep)
-        } else {
-            $_
-        }
-    }
-}
-
-function StringToInt {
-    Param(
-        [String]$Str
-    )
-
-    $max = 5
-    $total = 0
-    foreach($i in [byte[]][char[]]$Str[-$max..-1])
-    {
-        $total = $total + $i
-    }
-    return $total
-}
-
-function WriteRainbowArray {
-    Param(
-        [String]$Arguments = "",
-        [Array]$Colors = @(
-            $script:Color,
-            ($Colors | Get-Random),
-            $Host.UI.RawUI.ForeGroundColor
-        )
-    )
-    $Arguments = $Arguments.substring(0, [System.Math]::Min((GetMaxWidth -Scale $Scale) - 1, $Arguments.Length))
-    $ArgumentSplit = $Arguments.Split("_")
-    foreach($argument in $ArgumentSplit) {
-        Write-Host -NoNewLine -ForeGroundColor $Colors[([array]::IndexOf($ArgumentSplit, $argument) % $Colors.Count)] "$argument "
-    }
-    Write-Host
-}
-
-function WriteBar {
-    Param(
-        [String]$Head = '',
-        [String]$Tail = '',
-        [Array]$Separators = @(
-            $Box[1],
-            $Box[2],
-            $Box[0]
-        ),
-        [Array]$Colors = @(
-            $Color,
-            $Host.UI.RawUI.ForeGroundColor,
-            $Host.UI.RawUI.ForeGroundColor
-        ),
-        [String]$Width = ($GetMaxWidth - $Indent),
-        [Switch]$Short = $false
-    )
-    Write-Host $Separators[0] -NoNewline -ForegroundColor $Colors[0]
-    Write-Host $Separators[1] -NoNewline -ForegroundColor $Colors[0]
-    Write-Host $Head -NoNewline -ForegroundColor $Colors[1]
-    if(-not $Short)
-    {
-        Write-Host "".PadRight([System.Math]::Max(0, ($Width - ($Head.Length + $Tail.Length + 3))), $Separators[1]) -NoNewLine -ForegroundColor $Colors[0]
-        Write-Host $Tail -NoNewline -ForegroundColor $Colors[2]
-        Write-Host $Separators[2] -NoNewLine -ForegroundColor $Colors[0]
-    }
-    Write-Host
-}
-
-# Log normal events while a repo is being processed
-function WriteBarEvent {
-    if(-not $Quick)
-    {
-        WriteBar -Head $args -Separators $Box[4],$Box[2],$Box[0] -Short
-    }
-}
-
-# Log an error
-function ErrorLog {
-    Write-Host "error: $args ".PadRight(80, '!') -ForegroundColor 'Red'
-}
-
-function CascadePath {
-    param(
-        [String]$dir,
-        [String]$name,
-        [String]$file
-    )
-    $dest = ""
-    if($file.Length -gt 0)
-    {
-        try {
-            $dest = (Split-Path -Path $file)
-            if((Test-Path -Path $dest))
-            {
-                return $dest
-            }
-        } catch {
-            # Write-Host "failed to Split-Path -Path $dest"
-        }
-    }
-    if($name.Length -gt 0)
-    {
-        try {
-            $dest = (Join-Path -Path $dir -ChildPath $name)
-            if((Test-Path -Path $dest))
-            {
-                return $dest
-            }
-        } catch {
-            # Write-Host "failed to Join-Path -Path $dest"
-        }
-    }
-    return $dir
-}
+$script:repos = [ordered]@{}
 
 # SETUP AND REPO RECOGNITION
 ################################################################################
@@ -441,33 +243,33 @@ if ($Path.Length -gt 0)
 
 $dir.current = (Get-Location).ToString()
 
-$configFilePath = GetConfigFilePath
-$configFilePathExists = (Test-Path -Path $configFilePath)
-
 if($Scan)
 {
-    ScanAndSave -File $configFilePath
+    $script:repos = SearchForRepos -Depth $Depth -ForFile $ForFile -ForDirectory $Directory
+    Write-Host "$($script:repos.Count) repos found. writing $File"
+    Save -Repos $script:repos
 }
-elseif($configFilePathExists) {
-    # we found a file that looks like we can read it, so we try to load it.
-    LoadFromSave -File $configFilePath
+else {
+    $script:repos = (Load)
 }
 
 # maybe after all of that we didn't get any repos after all. in that case we
 # need to just take over and scan as a last resort.
-if($repos.Count -lt 1)
+if($script:repos.Count -lt 1)
 {
     # we echo this to the user because they did not request it
     Write-Host "no repo scan data found. scanning now..."
-    ScanAndSave -File $configFilePath
+    $script:repos = SearchForRepos -Depth $Depth -ForFile $ForFile -ForDirectory $ForDirectory
 }
 
 # we've tried everything we could, but found no repositories. give up and error
 # out.
-if($repos.Count -lt 1)
+if($script:repos.Count -lt 1)
 {
     ErrorLog "no repositories found"
     Exit
+} else {
+    $script:repos | ForEach-Object { Write-Host $_.Name }
 }
 
 # ok we have some repositories, now we just need to extract and filter them
@@ -476,7 +278,7 @@ if($Include.Length -gt 0)
 {
     $included = StringToList -Arg $Include -Trim
     $toDelete = [System.Collections.ArrayList]@()
-    foreach($item in $repos.Keys)
+    foreach($item in $script:repos.Keys)
     {
         if(!$included.Contains($item))
         {
@@ -485,7 +287,7 @@ if($Include.Length -gt 0)
     }
     foreach($item in $toDelete)
     {
-        $repos.Remove($item)
+        $script:repos.Remove($item)
     }
 }
 
@@ -494,7 +296,7 @@ if($Exclude.Length -gt 0)
 {
     $excluded = StringToList -Arg $Exclude -Trim
     $toDelete = [System.Collections.ArrayList]@()
-    foreach($item in $repos.Keys)
+    foreach($item in $script:repos.Keys)
     {
         if($excluded.Contains($item))
         {
@@ -503,7 +305,7 @@ if($Exclude.Length -gt 0)
     }
     foreach($item in $toDelete)
     {
-        $repos.Remove($item)
+        $script:repos.Remove($item)
     }
 }
 
@@ -513,7 +315,6 @@ if($DotnetClearLocals)
     dotnet nuget locals --clear all
 }
 
-
 $filterBranches = StringToList $Filter
 
 # MAIN LOGIC
@@ -521,36 +322,36 @@ $filterBranches = StringToList $Filter
 
 if($command.invokedGit -or $command.invokedOp)
 {
-    foreach($r in $repos.Keys)
+    foreach($r in $script:repos.Keys)
     {
-        $repos.$r.path = (Join-Path -Path $dir.current -ChildPath $r)
-
+        Write-Host "PATH IS $($script:repos[$r].path)"
         # before doing anything, make sure we can access this repo's path. if we
         # can't do that, give up entirely on this repo and move on to the next
         # one.
-        if(-Not (Test-Path -Path $repos.$r.path))
+        if(-Not (Test-Path -Path $script:repos[$r].path))
         {
             if($Verbose)
             {
-                ErrorLog "cannot find path $($repos.$r.path)"
+                ErrorLog "cannot find path $($script:repos[$r].path)"
             }
             continue
         }
 
         # otherwise we're good, so we can start executing commands
-        Set-Location -Path $repos.$r.path
+        Set-Location -Path $script:repos[$r].path
 
-        $repos.$r.branch = (Git branch --show-current)
+        $script:repos[$r].branch = (Git branch --show-current)
 
         if($filterBranches.Length -gt 0)
         {
-            if(-not $filterBranches.Contains($repos.$r.branch))
+            if(-not $filterBranches.Contains($script:repos[$r].branch))
             {
                 continue
             }
         }
 
-        WriteBar -Head $r -Tail $repos.$r.branch -Colors $Color,$Host.UI.RawUI.ForegroundColor,($Colors[(StringToInt -Str $repos.$r.branch) % $Colors.Count])
+        $brnch = $script:repos[$r].branch
+        WriteBar -Head $r -Tail $brnch #-Colors $Color,$Host.UI.RawUI.ForegroundColor,($Colors[(StringToInt -Str $branch) % $Colors.Count])
 
         if($Abort -or ($Merge.Length -gt 0))
         {
@@ -575,7 +376,7 @@ if($command.invokedGit -or $command.invokedOp)
             {
                 continue
             }
-            if(($dest -eq $repos.$r.branch))
+            if(($dest -eq $script:repos[$r].branch))
             {
                 if($Verbose)
                 {
@@ -585,10 +386,10 @@ if($command.invokedGit -or $command.invokedOp)
             } else {
                 WriteBarEvent "git checkout $dest"
                 Git checkout $dest
-                $repos.$r.branch = Git branch --show-current
-                if($repos.$r.branch -eq $dest)
+                $script:repos[$r].branch = Git branch --show-current
+                if($script:repos[$r].branch -eq $dest)
                 {
-                    WriteBarEvent "$($repos.$r.branch)$($Box[0])"
+                    WriteBarEvent "$($script:repos[$r].branch)$($Box[0])"
                     break
                 }
             }
@@ -598,7 +399,7 @@ if($command.invokedGit -or $command.invokedOp)
         {
             Git --no-pager branch --list | ForEach-Object {
                 $formatted = $_.Trim(" *")
-                if($formatted -ne $repos.$r.branch)
+                if($formatted -ne $script:repos[$r].branch)
                 {
                     WriteBarEvent "git branch -D $formatted"
                     Git branch -D $formatted
@@ -714,7 +515,7 @@ if($command.invokedGit -or $command.invokedOp)
 
         if(-not $Quick)
         {
-            WriteBar -Tail $repos.$r.branch -Separators $Box[3],$Box[2],$Box[0] -Colors $Color,White,$Colors[(StringToInt -Str $repos.$r.branch) % $Colors.Count]
+            WriteBar -Tail $script:repos[$r].branch -Separators $Box[3],$Box[2],$Box[0] -Colors $Color,White,$Colors[(StringToInt -Str $script:repos[$r].branch) % $Colors.Count]
         }
 
         IncrementColor
@@ -729,9 +530,9 @@ Set-Location $dir.current
 
 if($Start)
 {
-    foreach($key in $repos.Keys)
+    foreach($key in $script:repos.Keys)
     {
-        if($repos.$key.path.Length -lt 1)
+        if($script:repos.$key.path.Length -lt 1)
         {
             continue
         }
@@ -743,9 +544,9 @@ if($Start)
         {
             $ArgumentList = "$ArgumentList -NoExit"
         }
-        $SetLocation = CascadePath -dir $dir.current -name $key -file $repos.$key.path
+        $SetLocation = CascadePath -dir $dir.current -name $key -file $script:repos.$key.path
 
-        if((-not $filterBranches.Contains($repos.$key.branch)) -and ($filterBranches.Count -gt 0))
+        if((-not $filterBranches.Contains($script:repos.$key.branch)) -and ($filterBranches.Count -gt 0))
         {
             continue
         }
@@ -757,7 +558,7 @@ if($Start)
     }
 }
 
-Save -File $filepath
+Save -Repos $script:repos
 
 Set-Location $dir.original
 }
