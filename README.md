@@ -34,7 +34,8 @@ These arguments execute git commands in all repositories.
 | `-Abort`, `-a` | `git abort` | Aborts a merge if it is in progress. |
 | `-Branch <string>`, `-b` | `git checkout -b <branch>` | Cannot be used with `-Merge`. If `-Merge` is used, this is ignored. |
 | `-Checkout <string[,string...]>`, `-c` | `git checkout <branch>` | Supports comma-separated strings. If multiple branches are indicated, bifrost attempts to checkout each branch from left to right, and stops trying to checkout the current repository on the first success. Practically, this means you can target a feature branch and a "backing branch". Repositories that contain the feature branch will end up on that branch, but repositories that don't have it will end up on the backing branch. |
-| `-DeleteBranches`, `-Clean`, `-d` | `git branch -D <all_local_branches>` | Deletes all local branches except for the currently checked out branch, which may be different for each repository. This is useful for cleaning up your locals. |
+| `-DeleteBranches`, `-Clean` | `git branch -D <all_local_branches>` | Deletes all local branches except for the currently checked out branch, which may be different for each repository. This is useful for cleaning up your locals. |
+| `-Diff`, `-d` | `git diff --compact-summary --exit-code <branch>` | Displays compact summary of git diff target branch. |
 | `-Fetch`, `-f` | `git fetch` | Fetches from origin |
 | `-List`, `-l` | `git --no-pager branch --list` | Lists local branches |
 | `-Log` | `git --no-pager log` | Displays latest commit from log |

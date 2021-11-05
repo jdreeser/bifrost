@@ -146,7 +146,7 @@ Param(
     [String][Alias("e")]$Exclude = '',
 
     [Switch][Alias("a")]$Abort = $false,
-    [Switch][Alias("d", "Clean")]$DeleteBranches = $false,
+    [Switch][Alias("Clean")]$DeleteBranches = $false,
     [Switch][Alias("f")]$Fetch = $false,
     [Switch][Alias("l")]$List = $false,
     [Switch]$Log = $false,
@@ -172,6 +172,7 @@ Param(
     [Switch][Alias("s")]$Status = $false,
 
     [String][Alias("b")]$Branch = '',
+    [String][Alias("d")]$Diff = '',
     [Switch][Alias("u")]$SetUpstreamOrigin = $false,
     [String][Alias("c")]$Checkout = '',
     [String][Alias("m")]$Merge = '',
@@ -188,7 +189,7 @@ $ErrorActionPreference = "Stop"
 ################################################################################
 
 $command = @{
-    "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick -or $GitCommand -or $Log)
+    "invokedGit" = ($DeleteBranches -or $Abort -or $Fetch -or $List -or $Pull -or $Stash -or $Status -or $Quick -or $GitCommand -or $Log -or $Diff)
     "invokedOp" = (($Branch.Length -gt 0) -or ($Checkout.Length -gt 0) -or ($Merge.Length -gt 0) -or $DotnetRestore -or $DotnetBuild)
     "invokedScan" = (($For.Length -gt 0) -or ($Scan))
 }
@@ -668,6 +669,12 @@ if($command.invokedGit -or $command.invokedOp)
                 }
                 WriteRainbowArray -Arguments $gitOutput -Colors $Color,($Colors[(StringToInt -Str $author) % $Colors.Count]),$Host.UI.RawUI.ForegroundColor
             }
+        }
+
+        if($Diff)
+        {
+            WriteBarEvent "git diff $Diff --compact-summary --exit-code"
+            Git diff $Diff --compact-summary --exit-code
         }
 
         if($List)
