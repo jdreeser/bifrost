@@ -625,8 +625,17 @@ if($command.invokedGit -or $command.invokedOp)
             WriteBarEvent "git checkout -b $Branch"
             Git checkout -b $Branch
             if($SetUpstreamOrigin){
-                WriteBarEvent "git push --set-upstream origin $Branch"
-                Git push --set-upstream origin $Branch
+                $title = "git push --set-upstream origin $Branch"
+                $message = "Are you sure you want to push?"
+                $choices = "&yes","&no"
+                $default = 1 # 0=Yes, 1=No
+                $result = $Host.UI.PromptForChoice($title, $message, $choices, $default)
+                if ($result -eq 0) {
+                    WriteBarEvent "git push --set-upstream origin $Branch"
+                    Git push --set-upstream origin $Branch
+                } else {
+                    WriteBarEvent "skipped git push; your new branch has no upstream!"
+                }
             }
         }
 
