@@ -599,6 +599,9 @@ if($command.invokedGit -or $command.invokedOp)
                 }
             }
 
+            # todo: add a more granular config file to handle things like this instead of hardcoding them
+            Get-ChildItem -Recurse -Filter '*.orig' | Remove-Item
+
             WriteBarEvent "git stash clear"
             Git stash clear
         }
