@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.?.?] - 2022-01-11
 ### Added
 - `-Clean` now deletes files matching the `*.orig` filter left over when mergetool.keepBackup is true
+- `-Branch BRANCHNAME -SetUpstreamOrigin` now prompts the user for confirmation before pushing, in order to prevent pushing unwanted commits
 
 ## [0.0.0] - 2021-09-07
 ### Added
