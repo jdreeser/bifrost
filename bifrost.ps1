@@ -196,8 +196,9 @@ $command = @{
 
 if((-Not $command.invokedGit) -and (-Not $command.invokedOp) -and (-Not $command.invokedScan) -and (-Not $Start) -and (-Not $DotnetClearLocals) -or $Help)
 {
-    Get-Help -Name $(Join-Path -Path $PSScriptRoot -ChildPath 'bifrost.ps1').ToString() -Detailed
-    return
+    # Get-Help -Name $(Join-Path -Path $PSScriptRoot -ChildPath 'bifrost.ps1').ToString() -Detailed
+    $Quick = $true
+    $command.invokedGit = $true
 }
 
 # GLOBALS PRE-SETUP
